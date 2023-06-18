@@ -1,0 +1,2 @@
+-callback verification for v3 initial CALLBACK
+-vallback verification for v2 flashswap callback; add sender = executor

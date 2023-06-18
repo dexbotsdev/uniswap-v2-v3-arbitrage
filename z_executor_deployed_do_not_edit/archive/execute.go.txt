@@ -1,0 +1,191 @@
+package executor
+
+//payload builder, shared memory transfer of transaction to geth, etc.. should be in here
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
+	"math/big"
+	"mev-template-go/types"
+
+	//"github.com/umbracle/ethgo/abi"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	gethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+
+	"github.com/metachris/flashbotsrpc"
+)
+
+//function that calculates the bribe percentage given gas cost
+func Execute(path types.Path, config types.Config) error {
+	fmt.Println("EXECUTE V2 PATH")
+
+	//***Error Checking***
+	//check if path is
+	//check if path amountin is nil
+	if path.AmountIn == nil {
+		return errors.New("path amountIn is nil")
+	}
+	if path.Revenue == nil {
+		return errors.New("path revenue is nil")
+	}
+	//check if they equal 0
+	if path.AmountIn.Cmp(big.NewInt(0)) == 0 {
+		return errors.New("path amountIn is 0")
+	}
+	if path.Revenue.Cmp(big.NewInt(0)) == 0 {
+		return errors.New("path revenue is 0")
+	}
+
+	//executorAddress := common.HexToAddress("0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84")
+	//executorAddress := common.HexToAddress("0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496")
+	//executorAddress := common.HexToAddress("0x930d67ba236dabace7f3a81fa96cb31928bdb4a7")//foundry
+	//0x3d7c77070aeb2869c32976978141c1086f64452b
+	executorAddress := common.HexToAddress("0x3d7c77070aeb2869c32976978141c1086f64452b") //tenderly deployement address
+
+	//for the flashswap, we will execute the last transaction first
+	//then we transfer the weth amount to the first target, while keeping the rest of the weth in the contract for profit
+	//then we will execute the rest of the which should satisfy all pools
+
+	//workflow
+	//1. estimate gas. Use 99% bribe(arbitrary)
+	//2. using gas estimate calulate bribe percentage
+	//3. update the bribe percentage in the payload
+	//4. resimulate?
+	//5. send the transaction
+
+	//targets
+	//amountIn
+
+	flashswapCalldata, err := createFlashswapCalldata(path, executorAddress)
+	if err != nil {
+		return err
+	}
+
+	return nil
+	//***BUILD FLASHBOTS TRANSACTION***
+	// Set up the Flashbots client
+	flashbotsSigningKey, err := crypto.HexToECDSA("6e1fed8914d24893a3e5cb025683b50c8c17bfaa6acd92835bc8d096e2897002")
+	if err != nil {
+		log.Fatal(err)
+	}
+	//flashbotsSigningKey, err := crypto.HexToECDSA(os.Getenv("FLASHBOTS_SIGNING_KEY"))
+
+	rpc := flashbotsrpc.New("https://relay.flashbots.net")
+
+	fromAddress := crypto.PubkeyToAddress(config.PrivateKey.PublicKey)
+
+	nonce, err := config.Client.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+	transferAmount := big.NewInt(0)
+	//gasLimit := gasEstimate * 2
+	toAddress := path.Pools[len(path.Pools)-1].Address //flashswap contract address
+
+	header, err := config.Client.HeaderByNumber(context.Background(), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	latestBlockNumber := header.Number.Uint64()
+
+	baseFee := new(big.Int).Mul(header.BaseFee, big.NewInt(2))
+	maxFeePerGas := new(big.Int).Set(baseFee) // Set max fee per gas equal to the current base fee
+	maxPriorityFeePerGas := big.NewInt(0)
+
+	//tx := gethTypes.NewTransaction(nonce, toAddress, transferAmount, gasLimit, gasPrice, nil)
+	tx := gethTypes.NewTx(&gethTypes.DynamicFeeTx{
+		ChainID:    big.NewInt(1),
+		Nonce:      nonce,
+		GasTipCap:  maxPriorityFeePerGas,
+		GasFeeCap:  maxFeePerGas,
+		Gas:        uint64(30000),
+		To:         &toAddress,
+		Value:      transferAmount,
+		Data:       flashswapCalldata,
+		AccessList: nil,
+	})
+	fmt.Println("tx", tx)
+
+	chainID, err := config.Client.NetworkID(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("chainID", chainID)
+
+	signedTx, err := gethTypes.SignTx(tx, gethTypes.LatestSignerForChainID(chainID), config.PrivateKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("signedTx", signedTx)
+
+	//signedTxs := gethTypes.Transactions{signedTx}
+
+	data, err := signedTx.MarshalBinary()
+	if err != nil {
+		log.Fatal("Failed to marshal signed transaction:", err)
+	}
+	hexEncodedTx := hexutil.Encode(data)
+
+	// Simulate transaction
+	callBundleArgs := flashbotsrpc.FlashbotsCallBundleParam{
+		Txs:              []string{hexEncodedTx},
+		BlockNumber:      fmt.Sprintf("0x%x", latestBlockNumber),
+		StateBlockNumber: "latest",
+	}
+	fmt.Println("callBundleArgs:", callBundleArgs)
+	fmt.Println("hexEncodedTx:", hexEncodedTx)
+
+	txJSON, err := signedTx.MarshalJSON()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("signedTx JSON:", string(txJSON))
+	callResults, err := rpc.FlashbotsCallBundle(flashbotsSigningKey, callBundleArgs)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("FlashbotsCallBundle: %+v\n", callResults)
+
+	//get user stats
+	statsResults, err := rpc.FlashbotsGetUserStats(flashbotsSigningKey, 13281018)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("FlashbotsGetUserStats: %+v\n", statsResults)
+	return nil
+
+	//send transaction
+	sendBundleArgs := flashbotsrpc.FlashbotsSendBundleRequest{
+		Txs:         []string{"0x" + hexEncodedTx},
+		BlockNumber: fmt.Sprintf("0x%x", 13281018),
+	}
+
+	sendResult, err := rpc.FlashbotsSendBundle(flashbotsSigningKey, sendBundleArgs)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("FlashbotsSendBundle: %+v\n", sendResult)
+
+	//exit program
+
+	return nil
+
+	//***UPDATE THE BRIBE PERCENTAGE IN THE PAYLOAD***
+
+	//estimate gas for the flashswap transaction
+
+	//create the rest of the transactions(pool 1-n)
+	//for each
+	//create transaction for each depending on which token
+	//swap(amountout1, amountout2, to, data)
+	//
+
+	//We will do the falshswap transaction for pool0 last, becuase we need to pass in the calldata for the rest of the transactions
+}
+
+//function that multiplies big.Int with a decimal

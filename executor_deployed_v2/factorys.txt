@@ -1,0 +1,11 @@
+Uniswap v3
+0: UniswapV3Factory = 0x1F98431c8aD98523631AE4a59f267346ea31F984
+1: Custom
+
+
+Uniswap v2
+	uniswapFactoryAddress := common.HexToAddress("0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f")
+	sushiswapFactoryAddress := common.HexToAddress("0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac")
+	croFactoryAddress := common.HexToAddress("0x9DEB29c9a4c7A88a3C0257393b7f3335338D9A9D")
+	zeusFactoryAddress := common.HexToAddress("0xbdda21dd8da31d5bee0c9bb886c044ebb9b8906a")
+	luaFactoryAddress := common.HexToAddress("0x0388c1e0f210abae597b7de712b9510c6c36c857")

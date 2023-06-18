@@ -1,0 +1,8 @@
+{
+    "projectName": "GoArbitrageV3",
+    "namespace": "GoArbitrageV3.Contracts",
+    "lang": 0,
+    "autoCodeGen": true,
+    "projectPath": "../"
+    
+}

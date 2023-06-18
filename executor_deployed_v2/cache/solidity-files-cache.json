@@ -1,0 +1,165 @@
+{
+  "_format": "ethers-rs-sol-cache-3",
+  "paths": {
+    "artifacts": "out",
+    "build_infos": "out/build-info",
+    "sources": "contracts",
+    "tests": "test",
+    "scripts": "script",
+    "libraries": [
+      "lib"
+    ]
+  },
+  "files": {
+    "contracts/UniswapMixedExecutor.sol": {
+      "lastModificationDate": 1685495258683,
+      "contentHash": "021cc62b47e7b68ff9d7d142b84b904c",
+      "sourceName": "contracts/UniswapMixedExecutor.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "irOptimized",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.8.19",
+      "artifacts": {
+        "IERC20": {
+          "0.8.19+commit.7dd6d404.Windows.msvc": "UniswapMixedExecutor.sol\\IERC20.json"
+        },
+        "IUniswapV2Pair": {
+          "0.8.19+commit.7dd6d404.Windows.msvc": "UniswapMixedExecutor.sol\\IUniswapV2Pair.json"
+        },
+        "IUniswapV3Pool": {
+          "0.8.19+commit.7dd6d404.Windows.msvc": "UniswapMixedExecutor.sol\\IUniswapV3Pool.json"
+        },
+        "IUniswapV3Quoter": {
+          "0.8.19+commit.7dd6d404.Windows.msvc": "UniswapMixedExecutor.sol\\IUniswapV3Quoter.json"
+        },
+        "IWETH": {
+          "0.8.19+commit.7dd6d404.Windows.msvc": "UniswapMixedExecutor.sol\\IWETH.json"
+        },
+        "UniswapMixedExecutor": {
+          "0.8.19+commit.7dd6d404.Windows.msvc": "UniswapMixedExecutor.sol\\UniswapMixedExecutor.json"
+        }
+      }
+    },
+    "contracts/UniswapMixedExecutorWithCoinbaseTransferV2Assembly.sol": {
+      "lastModificationDate": 1681449976118,
+      "contentHash": "6674b93977e59f0a9bd9ef3a049134b4",
+      "sourceName": "contracts/UniswapMixedExecutorWithCoinbaseTransferV2Assembly.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "irOptimized",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.8.19",
+      "artifacts": {
+        "FBFSV3": {
+          "0.8.19+commit.7dd6d404.Windows.msvc": "UniswapMixedExecutorWithCoinbaseTransferV2Assembly.sol\\FBFSV3.json"
+        },
+        "IERC20": {
+          "0.8.19+commit.7dd6d404.Windows.msvc": "UniswapMixedExecutorWithCoinbaseTransferV2Assembly.sol\\IERC20.json"
+        },
+        "IUniswapV2Pair": {
+          "0.8.19+commit.7dd6d404.Windows.msvc": "UniswapMixedExecutorWithCoinbaseTransferV2Assembly.sol\\IUniswapV2Pair.json"
+        },
+        "IWETH": {
+          "0.8.19+commit.7dd6d404.Windows.msvc": "UniswapMixedExecutorWithCoinbaseTransferV2Assembly.sol\\IWETH.json"
+        }
+      }
+    },
+    "contracts/Utils.sol": {
+      "lastModificationDate": 1683799873419,
+      "contentHash": "73b8c168976293e4fbd8281f093f474c",
+      "sourceName": "contracts/Utils.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "irOptimized",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "viaIR": true,
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.8.19",
+      "artifacts": {
+        "Utils": {
+          "0.8.19+commit.7dd6d404.Windows.msvc": "Utils.sol\\Utils.json"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,367 @@
+package executor
+
+//payload builder, shared memory transfer of transaction to geth, etc.. should be in here
+
+import (
+	"bytes"
+	"context"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"log"
+	"math/big"
+	"mev-template-go/types"
+	"mev-template-go/uniswap_v2"
+	UniV2Pair "mev-template-go/uniswap_v2/contracts/uniswap_v2_pair"
+	"strings"
+
+	"github.com/ethereum/go-ethereum"
+
+	//"github.com/umbracle/ethgo/abi"
+
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	gethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+
+	"github.com/metachris/flashbotsrpc"
+)
+
+type UniswapV2FlashswapPayloadValues struct {
+	maxIntByteSize           int
+	bribePercentageOfRevenue int
+	swapCountMinus1          int
+	amountOutIndexes         byte
+
+	revenue big.Int
+}
+
+func createV2FlashswapCalldata(path types.Path, executorAddress common.Address, config types.Config) ([]byte, error) {
+
+	//for the flashswap, we will execute the last transaction first
+	//then we transfer the weth amount to the first target, while keeping the rest of the weth in the contract for profit
+	//then we will execute the rest of the which should satisfy all pools
+
+	//workflow
+	//1. estimate gas. Use 99% bribe(arbitrary)
+	//2. using gas estimate calulate bribe percentage
+	//3. update the bribe percentage in the payload
+	//4. resimulate?
+	//5. send the transaction
+
+	//targets
+	//amountIn
+	//get all target pools
+
+	UpdateReservesOfPath(&path, &config.Client)
+
+	targets := make([]common.Address, len(path.Pools))
+	for i := 0; i < len(path.Pools); i++ {
+		targets[i] = path.Pools[i].Address
+	}
+	fmt.Println("targets: ", targets)
+
+	amountOuts0, amountOuts1 := getAmountOuts(path)
+
+	//***BUILD FLASHSWAP PAYLOAD***
+	//we only use the path except for the last pool
+	//revenue := new(big.Int).Set(path.Revenue)
+	//revenuve = finalAmountOut - amountIn
+	//TODO: what is the discrepancy between the revenue and the calculated revenue?
+	finalAmountOut := new(big.Int).Add(amountOuts0[len(amountOuts0)-1], amountOuts1[len(amountOuts1)-1])
+	revenue := new(big.Int).Sub(finalAmountOut, path.AmountIn)
+	fmt.Println("path.Revenue", path.Revenue.String())
+	fmt.Println("revenue", revenue.String())
+	fmt.Println("amountIn", path.AmountIn.String())
+	swapCountMinus1 := len(path.Pools) - 2 //minus 2 becuase we we dont include the flashswap pool and we subtract 1 for gas savings on chain
+	amountOutIndexes := getAmountOutIndexes(amountOuts0[:len(amountOuts0)-1], amountOuts1[:len(amountOuts0)-1])
+	maxIntByteSize := getMaxIntByteSize(append([]*big.Int{revenue}, amountOuts0[:len(amountOuts0)-1]...)...)
+
+	//make swap data for each swap
+	swapTargets := targets[:len(targets)-1]
+	fmt.Println("swapTargets", swapTargets)
+
+	amountOuts := make([]*big.Int, len(path.Pools)-1)
+	for i := 0; i < len(path.Pools)-1; i++ {
+		fmt.Println("amountOuts0[i]", amountOuts0[i].String())
+		fmt.Println("amountOuts1[i]", amountOuts1[i].String())
+
+		amountOuts[i] = new(big.Int).Add(amountOuts0[i], amountOuts1[i])
+	}
+	fmt.Println("amountOuts", amountOuts)
+
+	//make payload bytes
+	payloadBuffer := new(bytes.Buffer)
+	payloadBuffer.WriteByte(byte(maxIntByteSize))
+	payloadBuffer.WriteByte(byte(99))
+	payloadBuffer.WriteByte(byte(swapCountMinus1))
+	payloadBuffer.WriteByte(amountOutIndexes)
+	payloadBuffer.Write(revenue.Bytes())
+	flashswapPayload := payloadBuffer.Bytes()
+	fmt.Println("flashswapPayload before swap data", hex.EncodeToString(flashswapPayload))
+
+	//***BUILD FLASHSWAP CALLDATA***
+	//(address factory, address tokenA, address tokenB, uint256 wethAmountToFirstMarket,uint256 _ethAmountToCoinbase,address[] memory targets) = abi.decode(_data, (address,address,address,uint256,uint256));
+	flashswapCalldata := uniswap_v2.CreateSwapCallData(amountOuts0[len(path.Pools)-1], amountOuts1[len(path.Pools)-1], executorAddress, flashswapPayload)
+	fmt.Println("flashswapCalldata", hex.EncodeToString(flashswapCalldata))
+
+	//***ESTIMATE GAS***
+	//estimate gas for the flashswap transaction
+	gasPrice, err := config.Client.SuggestGasPrice(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("gasPrice: ", gasPrice)
+	gasEstimate, err := config.Client.EstimateGas(context.Background(), ethereum.CallMsg{
+		From:     executorAddress,
+		To:       &path.Pools[len(path.Pools)-1].Address,
+		GasPrice: gasPrice,
+		Data:     flashswapCalldata,
+	})
+	gasCost := new(big.Int).Mul(gasPrice, big.NewInt(int64(gasEstimate)))
+	fmt.Println("gasEstimate: ", gasEstimate)
+
+	//***CALCULATE BRIBE***
+	profit := new(big.Int).Sub(path.Revenue, gasCost)                                                    //profit = revenue - gasEstimate
+	bribePercentage := big.NewInt(99)                                                                    //bribePercentage = 99
+	bribe := new(big.Int).Div(new(big.Int).Mul(profit, bribePercentage), big.NewInt(100))                //bribe = profit * bribePercentage / 100
+	bribePercentageOfRevenue := new(big.Int).Div(new(big.Int).Mul(bribe, big.NewInt(100)), path.Revenue) //bribePercentageOfRevenue = bribe*100 / revenue
+
+	//***UPDATE THE BRIBE PERCENTAGE IN THE PAYLOAD***
+	maxIntByteSizeBytes := byte(maxIntByteSize)
+	bribePercentageOfRevenueBytes := bribePercentageOfRevenue.Bytes()
+	swapCountMinus1Bytes := []byte{byte(swapCountMinus1)}
+	amountOutIndexesBytes := []byte{amountOutIndexes}
+	revenueBytes := padBytes(revenue.Bytes(), maxIntByteSize)
+
+	fmt.Println("maxIntByteSize:", maxIntByteSize, "bytes:", maxIntByteSizeBytes)
+	fmt.Println("bribePercentageOfRevenue:", bribePercentageOfRevenue, "bytes:", hex.EncodeToString(bribePercentageOfRevenueBytes))
+	fmt.Println("swapCountMinus1:", swapCountMinus1, "bytes:", hex.EncodeToString(swapCountMinus1Bytes))
+	fmt.Println("amountOutIndexes:", amountOutIndexes, "bytes:", hex.EncodeToString(amountOutIndexesBytes))
+	fmt.Println("revenue:", revenue, "bytes:", hex.EncodeToString(revenueBytes))
+
+	swapDataBytes := make([]byte, 0)
+	//build swapData bytes
+	for i := 0; i < len(swapTargets); i++ {
+		//swapData := bytes(swapTarget[i]) + bytes(amountOuts[i])
+		swapTargetsBytes := swapTargets[i].Bytes()
+		amountOutsBytes := padBytes(amountOuts[i].Bytes(), maxIntByteSize)
+		fmt.Println("swap", i)
+		fmt.Println("swapTarget:", swapTargets[i], "swapTargetsBytes: ", hex.EncodeToString(swapTargetsBytes))
+		fmt.Println("amountOuts:", amountOuts[i], "amountOutsBytes: ", hex.EncodeToString(amountOutsBytes))
+		temp := append(swapTargetsBytes, amountOutsBytes...)
+		swapDataBytes = append(swapDataBytes, temp...)
+	}
+	//swapDataBytes to hex
+	fmt.Println("swapDataBytes", hex.EncodeToString(swapDataBytes))
+
+	//remember to PAD ALL INTERGERS!!!
+	payloadBuffer = new(bytes.Buffer)
+	payloadBuffer.WriteByte(maxIntByteSizeBytes)
+	payloadBuffer.Write(bribePercentageOfRevenue.Bytes()) //TODO enforce this is 1 byte
+	payloadBuffer.WriteByte(byte(swapCountMinus1))
+	payloadBuffer.WriteByte(amountOutIndexes) //
+	payloadBuffer.Write(revenueBytes)
+	payloadBuffer.Write(swapDataBytes)
+
+	flashswapPayload = payloadBuffer.Bytes()
+	fmt.Println("flashswapPayload:", flashswapPayload)
+	fmt.Println("flashswapPayloadHex:", hex.EncodeToString(flashswapPayload))
+	fmt.Println("flashswapPaylaod calldata gas", getGasOfCalldata(flashswapPayload))
+
+	//***BUILD FLASHSWAP CALLDATA***
+	pairAbi, err := abi.JSON(strings.NewReader(UniV2Pair.UniV2PairMetaData.ABI))
+	flashswapCalldata, err = pairAbi.Pack("swap", amountOuts0[len(path.Pools)-1], amountOuts1[len(path.Pools)-1], executorAddress, flashswapPayload)
+	if err != nil {
+		return nil, err
+	}
+
+	//flashswapCalldata = uniswap_v2.CreateSwapCallData(amountOuts0[len(path.Pools)-1], amountOuts1[len(path.Pools)-1], executorAddress, flashswapPayload)
+	//flashswapCalldataHex := "0x" + hex.EncodeToString(flashswapCalldata)
+	fmt.Println("flashswapCalldata", hex.EncodeToString(flashswapCalldata))
+	fmt.Println("flashswapCall calldata gas", getGasOfCalldata(flashswapCalldata))
+	fmt.Println("flashswapTarget", path.Pools[len(path.Pools)-1].Address.Hex())
+	//print current block number
+	blockNumber, err := config.Client.BlockNumber(context.Background())
+	fmt.Println("blockNumber", blockNumber)
+	fmt.Println("blockNumber-1", blockNumber-1)
+	fmt.Println("executorAddress", executorAddress.Hex())
+	fmt.Println("amountIn", path.AmountIn.String())
+	fmt.Println("revenue", revenue.String())
+	fmt.Println("path.Revenue", path.Revenue.String())
+	fmt.Println("botAddress: 0x71296ebC93BB8645Fc0826EAED445e55b0813B41")
+
+	return flashswapCalldata, nil
+
+}
+
+//function that calculates the bribe percentage given gas cost
+func ExecuteV2Path(path types.Path, config types.Config) error {
+	fmt.Println("EXECUTE V2 PATH")
+
+	//***Error Checking***
+	//check if path is
+	//check if path amountin is nil
+	if path.AmountIn == nil {
+		return errors.New("path amountIn is nil")
+	}
+	if path.Revenue == nil {
+		return errors.New("path revenue is nil")
+	}
+	//check if they equal 0
+	if path.AmountIn.Cmp(big.NewInt(0)) == 0 {
+		return errors.New("path amountIn is 0")
+	}
+	if path.Revenue.Cmp(big.NewInt(0)) == 0 {
+		return errors.New("path revenue is 0")
+	}
+
+	//executorAddress := common.HexToAddress("0xb4c79daB8f259C7Aee6E5b2Aa729821864227e84")
+	//executorAddress := common.HexToAddress("0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496")
+	//executorAddress := common.HexToAddress("0x930d67ba236dabace7f3a81fa96cb31928bdb4a7")//foundry
+	//0x3d7c77070aeb2869c32976978141c1086f64452b
+	executorAddress := common.HexToAddress("0x3d7c77070aeb2869c32976978141c1086f64452b") //tenderly deployement address
+
+	//for the flashswap, we will execute the last transaction first
+	//then we transfer the weth amount to the first target, while keeping the rest of the weth in the contract for profit
+	//then we will execute the rest of the which should satisfy all pools
+
+	//workflow
+	//1. estimate gas. Use 99% bribe(arbitrary)
+	//2. using gas estimate calulate bribe percentage
+	//3. update the bribe percentage in the payload
+	//4. resimulate?
+	//5. send the transaction
+
+	//targets
+	//amountIn
+
+	flashswapCalldata, err := createV2FlashswapCalldata(path, executorAddress, config)
+	if err != nil {
+		return err
+	}
+
+	return nil
+	//***BUILD FLASHBOTS TRANSACTION***
+	// Set up the Flashbots client
+	flashbotsSigningKey, err := crypto.HexToECDSA("6e1fed8914d24893a3e5cb025683b50c8c17bfaa6acd92835bc8d096e2897002")
+	if err != nil {
+		log.Fatal(err)
+	}
+	//flashbotsSigningKey, err := crypto.HexToECDSA(os.Getenv("FLASHBOTS_SIGNING_KEY"))
+
+	rpc := flashbotsrpc.New("https://relay.flashbots.net")
+
+	fromAddress := crypto.PubkeyToAddress(config.PrivateKey.PublicKey)
+
+	nonce, err := config.Client.PendingNonceAt(context.Background(), fromAddress)
+	if err != nil {
+		log.Fatal(err)
+	}
+	transferAmount := big.NewInt(0)
+	//gasLimit := gasEstimate * 2
+	toAddress := path.Pools[len(path.Pools)-1].Address //flashswap contract address
+
+	header, err := config.Client.HeaderByNumber(context.Background(), nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	latestBlockNumber := header.Number.Uint64()
+
+	baseFee := new(big.Int).Mul(header.BaseFee, big.NewInt(2))
+	maxFeePerGas := new(big.Int).Set(baseFee) // Set max fee per gas equal to the current base fee
+	maxPriorityFeePerGas := big.NewInt(0)
+
+	//tx := gethTypes.NewTransaction(nonce, toAddress, transferAmount, gasLimit, gasPrice, nil)
+	tx := gethTypes.NewTx(&gethTypes.DynamicFeeTx{
+		ChainID:    big.NewInt(1),
+		Nonce:      nonce,
+		GasTipCap:  maxPriorityFeePerGas,
+		GasFeeCap:  maxFeePerGas,
+		Gas:        uint64(30000),
+		To:         &toAddress,
+		Value:      transferAmount,
+		Data:       flashswapCalldata,
+		AccessList: nil,
+	})
+	fmt.Println("tx", tx)
+
+	chainID, err := config.Client.NetworkID(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("chainID", chainID)
+
+	signedTx, err := gethTypes.SignTx(tx, gethTypes.LatestSignerForChainID(chainID), config.PrivateKey)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("signedTx", signedTx)
+
+	//signedTxs := gethTypes.Transactions{signedTx}
+
+	data, err := signedTx.MarshalBinary()
+	if err != nil {
+		log.Fatal("Failed to marshal signed transaction:", err)
+	}
+	hexEncodedTx := hexutil.Encode(data)
+
+	// Simulate transaction
+	callBundleArgs := flashbotsrpc.FlashbotsCallBundleParam{
+		Txs:              []string{hexEncodedTx},
+		BlockNumber:      fmt.Sprintf("0x%x", latestBlockNumber),
+		StateBlockNumber: "latest",
+	}
+	fmt.Println("callBundleArgs:", callBundleArgs)
+	fmt.Println("hexEncodedTx:", hexEncodedTx)
+
+	txJSON, err := signedTx.MarshalJSON()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("signedTx JSON:", string(txJSON))
+	callResults, err := rpc.FlashbotsCallBundle(flashbotsSigningKey, callBundleArgs)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("FlashbotsCallBundle: %+v\n", callResults)
+
+	//get user stats
+	statsResults, err := rpc.FlashbotsGetUserStats(flashbotsSigningKey, 13281018)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("FlashbotsGetUserStats: %+v\n", statsResults)
+	return nil
+
+	//send transaction
+	sendBundleArgs := flashbotsrpc.FlashbotsSendBundleRequest{
+		Txs:         []string{"0x" + hexEncodedTx},
+		BlockNumber: fmt.Sprintf("0x%x", 13281018),
+	}
+
+	sendResult, err := rpc.FlashbotsSendBundle(flashbotsSigningKey, sendBundleArgs)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("FlashbotsSendBundle: %+v\n", sendResult)
+
+	//exit program
+
+	return nil
+
+	//***UPDATE THE BRIBE PERCENTAGE IN THE PAYLOAD***
+
+	//estimate gas for the flashswap transaction
+
+	//create the rest of the transactions(pool 1-n)
+	//for each
+	//create transaction for each depending on which token
+	//swap(amountout1, amountout2, to, data)
+	//
+
+	//We will do the falshswap transaction for pool0 last, becuase we need to pass in the calldata for the rest of the transactions
+}
+
+//function that multiplies big.Int with a decimal

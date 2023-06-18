@@ -1,0 +1,1 @@
+[{"inputs":[{"internalType":"address","name":"pool","type":"address"},{"internalType":"int16","name":"start","type":"int16"},{"internalType":"int16","name":"end","type":"int16"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"bytes","name":"data","type":"bytes"}],"name":"BytesEmitted","type":"event"}]
