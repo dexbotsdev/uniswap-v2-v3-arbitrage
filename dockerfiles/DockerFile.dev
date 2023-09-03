@@ -1,0 +1,74 @@
+# Use Ubuntu 20.04 (focal) as the base image
+FROM ubuntu:jammy
+
+COPY dependencies*txt .
+
+# Define build arguments for username, UID, and GID
+ARG USERNAME
+ARG USER_UID
+ARG USER_GID
+
+ARG GO_VERSION="1.18.3"
+ARG GO_DOWNLOAD_URL=https://dl.google.com/go/go$GO_VERSION.linux-amd64.tar.gz
+
+ARG DEBIAN_FRONTEND=noninteractive
+ARG DEP_FILENAME=dependencies.txt
+ARG GO_DEP_FILENAME=dependencies_go.txt
+
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      software-properties-common \
+      ca-certificates \
+      sudo \
+      curl \
+      wget \
+      git
+
+RUN if [ ! -f ${DEP_FILENAME} ]; then \
+      echo "${DEP_FILENAME} not found." && exit 1; \
+   fi && \
+   export DEBIAN_FRONTEND=noninteractive && \
+   apt-get update && \
+   apt-get install -y --no-install-recommends \
+   $(grep -v '^#' ${DEP_FILENAME}) && \
+   apt-get autoremove -y && \
+   apt-get clean
+
+
+# Go
+ENV GOPATH /go
+ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
+RUN wget $GO_DOWNLOAD_URL -O go.tar.gz && \
+   tar -C /usr/local -xzf go.tar.gz && \
+   rm go.tar.gz && \
+   mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH" && \
+   if [ ! -f ${GO_DEP_FILENAME} ]; then \
+      echo "${GO_DEP_FILENAME} not found." && exit 1; \
+   fi && \
+   go install -v $(grep -v '^#' ${GO_DEP_FILENAME})
+
+
+# Create a new group and user matching the host user/group
+# --no-log-init to prevent image size explosion!
+RUN groupadd -g $USER_GID $USERNAME && \
+   useradd -m -u $USER_UID -g $USER_GID $USERNAME --no-log-init && \
+   echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+   chsh -s /usr/bin/bash ${USERNAME}
+
+# Define the created user as the default user for the container
+# RUN as USER for all following lines
+USER ${USERNAME}
+
+# Set the default working directory to the user's home directory
+WORKDIR /home/${USERNAME}
+
+# foundry
+RUN curl -L https://foundry.paradigm.xyz | bash && \
+   /home/${USERNAME}/.foundry/bin/foundryup
+
+
+# where I mount code
+WORKDIR /code
+
+CMD ["/bin/bash"]

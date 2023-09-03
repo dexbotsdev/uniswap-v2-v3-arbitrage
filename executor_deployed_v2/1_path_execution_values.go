@@ -9,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"mev-template-go/logic"
+	"mev-template-go/path"
 
 	"github.com/ethereum/go-ethereum/common"
 	//"github.com/umbracle/ethgo/abi"
@@ -77,7 +77,7 @@ type V2SwapData struct {
 	AmountIndex int //3 bits
 }
 
-func convertPathToPathExecutionValues(path logic.Path, bribe *big.Int, ownerTransferBool bool, coinbaseTransferBool bool) (PathExecutionValues, error) {
+func convertPathToPathExecutionValues(path path.Path, bribe *big.Int, ownerTransferBool bool, coinbaseTransferBool bool) (PathExecutionValues, error) {
 	fmt.Println("***convertPathToPathExecutionValues***")
 
 	if path.AmountIn == nil {

@@ -10,14 +10,14 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"mev-template-go/logic"
+	"mev-template-go/path"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/ethclient"
 	//"github.com/umbracle/ethgo/abi"
 )
 
-func BuildFlashbotsBundle(path logic.Path, ownerTransfer bool, coinbaseTransfer bool, client *ethclient.Client) ([]byte, error) {
+func BuildFlashbotsBundle(path path.Path, ownerTransfer bool, coinbaseTransfer bool, client *ethclient.Client) ([]byte, error) {
 
 	calldata, err := PathToCalldata(path, path.Revenue, ownerTransfer, coinbaseTransfer)
 	if err != nil {

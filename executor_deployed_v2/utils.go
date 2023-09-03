@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"mev-template-go/pool_interface"
 	"mev-template-go/types"
 	"mev-template-go/uniswap_v2"
 
@@ -33,7 +34,7 @@ func getFeeIndex(fee int) (int, error) {
 	return feeIndex, nil
 }
 
-func getOtherTokenFromPool(pool types.PoolInterface, knownToken common.Address) common.Address {
+func getOtherTokenFromPool(pool pool_interface.PoolInterface, knownToken common.Address) common.Address {
 	tokens := pool.GetTokens()
 	var otherTokenAddress common.Address
 	if tokens[0] == knownToken {
@@ -105,7 +106,7 @@ func getAmountOutIndexes(amountOuts0, amountOuts1 []*big.Int) byte {
 	return amountOutIndexes
 }
 
-func UpdatePools(pools []types.PoolInterface, client *ethclient.Client) error {
+func UpdatePools(pools []pool_interface.PoolInterface, client *ethclient.Client) error {
 	for i := 0; i < len(pools); i++ {
 		pools[i].Update(client)
 	}

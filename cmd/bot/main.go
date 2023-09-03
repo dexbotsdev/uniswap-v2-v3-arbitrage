@@ -6,8 +6,11 @@ import (
 	"math/big"
 	"os"
 
-	"mev-template-go/logic"
+	"mev-template-go/handle_new_block"
+	"mev-template-go/path"
+	"mev-template-go/pool_interface"
 	"mev-template-go/recon"
+	"mev-template-go/setup"
 	"mev-template-go/types"
 
 	"context"
@@ -135,18 +138,18 @@ func main() {
 	//filteredV2Pools.json
 	//paths.json
 	//***READ POOLS AND PATHS FROM FILE***
-	pools, err := logic.GetFilteredPools()
+	pools, err := setup.GetFilteredPools()
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 	fmt.Println("Pools length ", len(pools))
 
-	paths, err := logic.ReadPathsFromFile()
+	paths, err := path.ReadPathsFromFile()
 	fmt.Println("Paths length ", len(paths))
 
 	//***SETUP MAPS***
-	poolToPathsMap := make(map[common.Address][]logic.Path)
+	poolToPathsMap := make(map[common.Address][]path.Path)
 
 	//create poolToPathMap and remove duplicates
 	for _, path := range paths {
@@ -164,7 +167,7 @@ func main() {
 	}
 
 	//make poolAddressToPoolMap
-	poolAddressToPoolMap := make(map[common.Address]types.PoolInterface)
+	poolAddressToPoolMap := make(map[common.Address]pool_interface.PoolInterface)
 	for _, pool := range pools {
 		poolAddressToPoolMap[pool.GetAddress()] = pool
 	}
@@ -197,7 +200,7 @@ func main() {
 
 		header := <-blockChannel
 		//check for reserve changes in new block. Runs for all blocks since last checked block
-		err = HandleNewBlock(pools, poolToPathsMap, poolAddressToPoolMap, config, header)
+		err = handle_new_block.HandleNewBlock(pools, poolToPathsMap, poolAddressToPoolMap, config, header)
 
 		// affectedPoolAddresses, err := UpdatePoolsAndGetAffectedAddresses(state.Pools, header, config)
 		// if err != nil {

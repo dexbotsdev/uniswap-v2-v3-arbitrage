@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"mev-template-go/logic"
+	"mev-template-go/path"
 	"mev-template-go/uniswap_v3"
 	"os"
 	"testing"
@@ -40,7 +40,7 @@ func TestExecuteMixedPathWithV2V2V2Sushiswap(t *testing.T) {
 	baseFee := header.BaseFee
 
 	//read pools
-	paths, err := logic.ReadPathsFromFile()
+	paths, err := path.ReadPathsFromFile()
 	fmt.Println("err: ", err)
 	assert.NoError(t, err)
 
@@ -134,7 +134,7 @@ func TestExecuteMixedPathWithV2V2V2Sushiswap(t *testing.T) {
 		fmt.Println("err: ", err)
 		t.Fatal(err)
 	}
-	logic.PrintPath(profitablePath)
+	path.PrintPath(profitablePath)
 	fmt.Println("quoterRevenue: ", quoterRevenue.String())
 	fmt.Println("path revenue: ", profitablePath.Revenue.String())
 
@@ -183,7 +183,7 @@ func TestExecuteMixedPathWithV2V2V3(t *testing.T) {
 	baseFee := header.BaseFee
 
 	//read pools
-	paths, err := logic.ReadPathsFromFile()
+	paths, err := path.ReadPathsFromFile()
 	fmt.Println("err: ", err)
 	assert.NoError(t, err)
 
@@ -272,7 +272,7 @@ func TestExecuteMixedPathWithV2V2V3(t *testing.T) {
 		fmt.Println("err: ", err)
 		t.Fatal(err)
 	}
-	logic.PrintPath(profitablePath)
+	path.PrintPath(profitablePath)
 	fmt.Println("quoterRevenue: ", quoterRevenue.String())
 	fmt.Println("path revenue: ", profitablePath.Revenue.String())
 
@@ -322,7 +322,7 @@ func TestExecuteMixedPathWithV3V2V3(t *testing.T) {
 	baseFee := header.BaseFee
 
 	//read pools
-	paths, err := logic.ReadPathsFromFile()
+	paths, err := path.ReadPathsFromFile()
 	fmt.Println("err: ", err)
 	assert.NoError(t, err)
 
@@ -411,7 +411,7 @@ func TestExecuteMixedPathWithV3V2V3(t *testing.T) {
 		fmt.Println("err: ", err)
 		t.Fatal(err)
 	}
-	logic.PrintPath(profitablePath)
+	path.PrintPath(profitablePath)
 	fmt.Println("quoterRevenue: ", quoterRevenue.String())
 	fmt.Println("path revenue: ", profitablePath.Revenue.String())
 
@@ -464,7 +464,7 @@ func TestExecuteMixedPathWithV3V3V3(t *testing.T) {
 	baseFee := header.BaseFee
 
 	//read pools
-	paths, err := logic.ReadPathsFromFile()
+	paths, err := path.ReadPathsFromFile()
 	fmt.Println("err: ", err)
 	assert.NoError(t, err)
 
@@ -553,7 +553,7 @@ func TestExecuteMixedPathWithV3V3V3(t *testing.T) {
 		fmt.Println("err: ", err)
 		t.Fatal(err)
 	}
-	logic.PrintPath(profitablePath)
+	path.PrintPath(profitablePath)
 	fmt.Println("quoterRevenue: ", quoterRevenue.String())
 	fmt.Println("path revenue: ", profitablePath.Revenue.String())
 
@@ -608,7 +608,7 @@ func TestExecuteMixedPathWithV2V2V2(t *testing.T) {
 	baseFee := header.BaseFee
 
 	//read pools
-	paths, err := logic.ReadPathsFromFile()
+	paths, err := path.ReadPathsFromFile()
 	fmt.Println("err: ", err)
 	assert.NoError(t, err)
 
@@ -696,7 +696,7 @@ func TestExecuteMixedPathWithV2V2V2(t *testing.T) {
 		fmt.Println("err: ", err)
 		t.Fatal(err)
 	}
-	logic.PrintPath(profitablePath)
+	path.PrintPath(profitablePath)
 	fmt.Println("quoterRevenue: ", quoterRevenue.String())
 	fmt.Println("path revenue: ", profitablePath.Revenue.String())
 
@@ -749,7 +749,7 @@ func TestExecuteMixedPathWithV2V3V2(t *testing.T) {
 	baseFee := header.BaseFee
 
 	//read pools
-	paths, err := logic.ReadPathsFromFile()
+	paths, err := path.ReadPathsFromFile()
 	fmt.Println("err: ", err)
 	assert.NoError(t, err)
 
@@ -839,7 +839,7 @@ func TestExecuteMixedPathWithV2V3V2(t *testing.T) {
 	}
 	fmt.Println("quoterRevenue: ", quoterRevenue.String())
 
-	logic.PrintPath(profitablePath)
+	path.PrintPath(profitablePath)
 
 	fmt.Println("path revenue: ", profitablePath.Revenue.String())
 
@@ -890,7 +890,7 @@ func TestExecuteMixedPathWithV3V3V2(t *testing.T) {
 	baseFee := header.BaseFee
 
 	//read pools
-	paths, err := logic.ReadPathsFromFile()
+	paths, err := path.ReadPathsFromFile()
 	fmt.Println("err: ", err)
 	assert.NoError(t, err)
 
@@ -975,7 +975,7 @@ func TestExecuteMixedPathWithV3V3V2(t *testing.T) {
 	}
 	fmt.Println("quoterRevenue: ", quoterRevenue.String())
 
-	logic.PrintPath(profitablePath)
+	path.PrintPath(profitablePath)
 
 	fmt.Println("path revenue: ", profitablePath.Revenue.String())
 
@@ -1026,7 +1026,7 @@ func TestExecuteMixedPathWithV3(t *testing.T) {
 	baseFee := header.BaseFee
 
 	//read pools
-	paths, err := logic.ReadPathsFromFile()
+	paths, err := path.ReadPathsFromFile()
 	fmt.Println("err: ", err)
 	assert.NoError(t, err)
 
@@ -1123,7 +1123,7 @@ func TestExecuteMixedPathWithV3(t *testing.T) {
 	}
 	fmt.Println("quoterRevenue: ", quoterRevenue.String())
 
-	logic.PrintPath(profitablePath)
+	path.PrintPath(profitablePath)
 
 	fmt.Println("path revenue: ", profitablePath.Revenue.String())
 
@@ -1190,7 +1190,7 @@ func TestExecuteMixedPath(t *testing.T) {
 	baseFee := header.BaseFee
 
 	//read pools
-	paths, err := logic.ReadPathsFromFile()
+	paths, err := path.ReadPathsFromFile()
 	fmt.Println("err: ", err)
 	assert.NoError(t, err)
 
@@ -1222,7 +1222,7 @@ func TestExecuteMixedPath(t *testing.T) {
 	fmt.Println("path bestAmountIn: ", profitablePath.AmountIn.String())
 	fmt.Println("path revenue: ", profitablePath.Revenue.String())
 
-	logic.PrintPath(profitablePath)
+	path.PrintPath(profitablePath)
 
 	//convert path to path execution values
 

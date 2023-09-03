@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"mev-template-go/logic"
+	"mev-template-go/path"
 	"mev-template-go/uniswap_v3"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -48,7 +48,7 @@ func getV3Factory(factoryAddress common.Address) (int, error) {
 	return 0, errors.New("factory not found")
 }
 
-func compressTokens(path logic.Path) ([]common.Address, map[common.Address]int) {
+func compressTokens(path path.Path) ([]common.Address, map[common.Address]int) {
 	pools := path.Pools
 	tokenToIndexMap := make(map[common.Address]int)
 
@@ -95,7 +95,7 @@ func compressTokens(path logic.Path) ([]common.Address, map[common.Address]int) 
 	return uniqueTokens, tokenToIndexMap
 }
 
-func getV2CallbackV3SwapsDone(path logic.Path) bool {
+func getV2CallbackV3SwapsDone(path path.Path) bool {
 	//if there is a v3 swap, then v3 swaps are not done. The last swap is ignored since we know its v2.
 	for i := 0; i < len(path.Pools)-1; i++ {
 		if path.Pools[i].GetType() == "uniswap_v3" {
@@ -105,7 +105,7 @@ func getV2CallbackV3SwapsDone(path logic.Path) bool {
 	return true
 }
 
-func getV2SwapDatas(path logic.Path, amountsIndexMap map[int]int) ([]V2SwapData, error) {
+func getV2SwapDatas(path path.Path, amountsIndexMap map[int]int) ([]V2SwapData, error) {
 	// type V2SwapData struct {
 	// 	swapIndex int //3 bits
 	// 	AmountIndex      int //3 bits
@@ -126,7 +126,7 @@ func getV2SwapDatas(path logic.Path, amountsIndexMap map[int]int) ([]V2SwapData,
 	return v2SwapDatas, nil
 }
 
-func getV3SwapDatas(path logic.Path, targets []common.Address, amountsIndexMap map[int]int, tokenToIndexMap map[common.Address]int) ([]V3SwapData, error) {
+func getV3SwapDatas(path path.Path, targets []common.Address, amountsIndexMap map[int]int, tokenToIndexMap map[common.Address]int) ([]V3SwapData, error) {
 	//Overview
 	//get reversed indexes
 	v3SwapLength := 0
@@ -188,7 +188,7 @@ func getV3SwapDatas(path logic.Path, targets []common.Address, amountsIndexMap m
 	return v3SwapDatas, nil
 }
 
-func getCompressedAmountsAndIndexMap(path logic.Path, amountOuts []*big.Int, amountIn *big.Int) ([]*big.Int, map[int]int, error) {
+func getCompressedAmountsAndIndexMap(path path.Path, amountOuts []*big.Int, amountIn *big.Int) ([]*big.Int, map[int]int, error) {
 	//get uncompressed amounts
 	//remove duplicates
 	//make sure amountIn is at the first index

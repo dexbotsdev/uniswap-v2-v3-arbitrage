@@ -7,11 +7,11 @@ package executor
 
 import (
 	"math/big"
-	"mev-template-go/logic"
+	"mev-template-go/path"
 	//"github.com/umbracle/ethgo/abi"
 )
 
-func PathToCalldata(path logic.Path, bribe *big.Int, ownerTransfer bool, coinbaseTransfer bool) ([]byte, error) {
+func PathToCalldata(path path.Path, bribe *big.Int, ownerTransfer bool, coinbaseTransfer bool) ([]byte, error) {
 	pathExecutionValues, err := convertPathToPathExecutionValues(path, bribe, ownerTransfer, coinbaseTransfer)
 	if err != nil {
 		return nil, err

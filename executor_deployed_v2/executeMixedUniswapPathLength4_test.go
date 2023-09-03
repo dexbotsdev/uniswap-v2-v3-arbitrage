@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"mev-template-go/logic"
+	"mev-template-go/path"
 	"os"
 	"testing"
 
@@ -40,7 +40,7 @@ func TestExecuteMixedPathWithV2V2V3V3(t *testing.T) {
 	baseFee := header.BaseFee
 
 	//read pools
-	paths, err := logic.ReadPathsFromFile()
+	paths, err := path.ReadPathsFromFile()
 	fmt.Println("err: ", err)
 	assert.NoError(t, err)
 
@@ -134,7 +134,7 @@ func TestExecuteMixedPathWithV2V2V3V3(t *testing.T) {
 		fmt.Println("err: ", err)
 		t.Fatal(err)
 	}
-	logic.PrintPath(profitablePath)
+	path.PrintPath(profitablePath)
 	fmt.Println("quoterRevenue: ", quoterRevenue.String())
 	fmt.Println("path revenue: ", profitablePath.Revenue.String())
 

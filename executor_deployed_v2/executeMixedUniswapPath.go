@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"mev-template-go/logic"
+	"mev-template-go/path"
 	"mev-template-go/types"
 	"os"
 
@@ -53,7 +53,7 @@ import (
 var executorAddress = common.HexToAddress("0xAF56d20B378CED055E8e384c67214D4B9fD2C9cF") //TODO
 var botWallet = common.HexToAddress("0x71296ebC93BB8645Fc0826EAED445e55b0813B41")       //TODO
 
-func ExecuteMixedPath(path logic.Path, config types.Config) error {
+func ExecuteMixedPath(path path.Path, config types.Config) error {
 	fmt.Println("ExecuteMixedPath")
 	//convert path to payload values
 

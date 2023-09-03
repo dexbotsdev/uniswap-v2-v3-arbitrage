@@ -3,7 +3,7 @@ package uniswap_v2
 import (
 	"fmt"
 	"math/big"
-	"mev-template-go/types"
+	"mev-template-go/pool_interface"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -54,7 +54,7 @@ func (pool *Pool) GetCopy() *Pool {
 		Fee:            pool.Fee,
 	}
 }
-func (pool *Pool) GetCopyInterface() types.PoolInterface {
+func (pool *Pool) GetCopyInterface() pool_interface.PoolInterface {
 	poolCopy := *pool.GetCopy()
 	return &poolCopy
 }
