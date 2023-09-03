@@ -1,3 +1,15 @@
+## Quick setup
+#### Build the dev docker image
+```
+cd dockerfiles
+./build-dev.sh
+```
+#### Start a new container
+```
+# repo dir mount on /code
+./spinup-dev.sh uni_arb
+```
+
 # MEV Template for Go
 
 > Inspired by [DeGatchi](https://twitter.com/DeGatchi).
